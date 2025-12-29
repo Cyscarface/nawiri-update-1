@@ -1,0 +1,7 @@
+{
+  "name": "nawiri360 Marketplace",
+  "description": "A production-grade tenant-landlord marketplace platform featuring property listings, integrated services, maintenance tracking, and AI-powered recommendations and fraud detection.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

@@ -21,6 +21,12 @@ export enum MaintenanceStatus {
   CLOSED = 'CLOSED'
 }
 
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED'
+}
+
 export interface User {
   id: string;
   name: string;
@@ -65,11 +71,22 @@ export interface MaintenanceRequest {
 export interface ServiceProvider {
   id: string;
   name: string;
-  category: string;
+  category: 'Cleaning' | 'Plumbing' | 'Electrical' | 'Moving' | 'Security';
   rating: number;
   reviewsCount: number;
   description: string;
   hourlyRate: number;
+  avatar: string;
+}
+
+export interface Payment {
+  id: string;
+  userId: string;
+  propertyId?: string;
+  amount: number;
+  type: 'Rent' | 'Security Deposit' | 'Service Fee';
+  status: PaymentStatus;
+  date: string;
 }
 
 export interface Message {
@@ -79,6 +96,7 @@ export interface Message {
   content: string;
   timestamp: string;
   read: boolean;
+  senderName?: string;
 }
 
 export interface Application {

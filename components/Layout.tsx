@@ -5,9 +5,9 @@ import ChatAssistant from './ChatAssistant';
 import Footer from './Footer';
 import { 
   Home, Search, LayoutDashboard, MessageSquare, 
-  Wrench, ShieldCheck, User as UserIcon, LogOut, Menu, X,
+  Wrench, ShieldCheck, LogOut, Menu, X,
   Sun, Moon, ChevronLeft, ChevronRight, MoreHorizontal,
-  UserCircle
+  UserCircle, CreditCard, ShoppingBag
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -59,10 +59,11 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onNavigate, currentPath
   const navItems = [
     { name: 'Home', path: '/', icon: Home, roles: null },
     { name: 'Search', path: '/search', icon: Search, roles: null },
+    { name: 'Services', path: '/services', icon: ShoppingBag, roles: null },
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: [UserRole.TENANT, UserRole.LANDLORD, UserRole.SERVICE_PROVIDER, UserRole.ADMIN] },
-    { name: 'Profile', path: '/profile', icon: UserCircle, roles: null },
     { name: 'Messages', path: '/messages', icon: MessageSquare, roles: [UserRole.TENANT, UserRole.LANDLORD] },
-    { name: 'Maintenance', path: '/maintenance', icon: Wrench, roles: [UserRole.TENANT, UserRole.LANDLORD] },
+    { name: 'Payments', path: '/payments', icon: CreditCard, roles: [UserRole.TENANT] },
+    { name: 'Profile', path: '/profile', icon: UserCircle, roles: null },
     { name: 'Admin', path: '/admin', icon: ShieldCheck, roles: [UserRole.ADMIN] },
   ];
 
@@ -115,7 +116,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onNavigate, currentPath
             </div>
           </div>
 
-          <nav className="flex-1 space-y-2">
+          <nav className="flex-1 space-y-2 overflow-y-auto hide-scrollbar">
             {filteredNav.map((item) => (
               <button
                 key={item.path}

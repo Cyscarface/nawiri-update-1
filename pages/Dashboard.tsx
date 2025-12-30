@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserRole, Property, Application, MaintenanceRequest, MaintenanceStatus } from '../types';
+import { UserRole, Property, Application, MaintenanceRequest, MaintenanceStatus, Payment, PaymentStatus } from '../types';
 import { api } from '../services/mockApi';
-import { geminiService } from '../services/geminiService';
+// Added ShieldCheck and Sparkles to the lucide-react imports
 import { 
-  Briefcase, CheckCircle, Clock, Home, 
-  MessageCircle, TrendingUp, AlertTriangle, User as UserIcon,
-  Zap, Wrench, ShieldCheck, ArrowUpRight, Plus
+  CreditCard, MessageSquare, Wrench, Calendar, 
+  ArrowUpRight, AlertCircle, CheckCircle2, 
+  Home, Users, TrendingUp, Plus, ArrowRight,
+  ExternalLink, Clock, ShieldCheck, Sparkles
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -15,196 +16,288 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ userRole, userId }) => {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
-  const [aiRecs, setAiRecs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<{
+    properties: Property[];
+    applications: Application[];
+    maintenance: MaintenanceRequest[];
+    payments: Payment[];
+  }>({
+    properties: [],
+    applications: [],
+    maintenance: [],
+    payments: []
+  });
 
   useEffect(() => {
     const loadDashboardData = async () => {
-      if (userRole === UserRole.LANDLORD) {
-        const owned = await api.properties.getByLandlord(userId);
-        setProperties(owned);
-        const allApps = await Promise.all(owned.map(p => api.applications.getByProperty(p.id)));
-        setApplications(allApps.flat());
-      } else if (userRole === UserRole.TENANT) {
-        const myApps = await api.applications.getByUser(userId);
-        setApplications(myApps);
-        const allProps = await api.properties.list();
-        const user = { id: userId, name: 'Alex', email: 'alex@test.com', role: UserRole.TENANT, verified: true };
-        const recs = await geminiService.getRecommendations(user, allProps, "Searching for modern lofts near downtown under $3000");
-        setAiRecs(recs);
+      setLoading(true);
+      try {
+        if (userRole === UserRole.LANDLORD) {
+          const owned = await api.properties.getByLandlord(userId);
+          const allApps = await Promise.all(owned.map(p => api.applications.getByProperty(p.id)));
+          setData({
+            properties: owned,
+            applications: allApps.flat(),
+            maintenance: [], // Mocked as empty for now
+            payments: [] // In a real app, fetch payments for these properties
+          });
+        } else {
+          const myApps = await api.applications.getByUser(userId);
+          const history = await api.payments.getByUser(userId);
+          setData({
+            properties: [], // Tenants see their active lease elsewhere or via applications
+            applications: myApps,
+            maintenance: [], 
+            payments: history
+          });
+        }
+      } finally {
+        setLoading(false);
       }
     };
     loadDashboardData();
   }, [userRole, userId]);
 
-  const StatsCard = ({ title, value, icon: Icon, color, trend }: any) => (
-    <div className="bg-white dark:bg-[#0D1512] p-6 lg:p-8 rounded-[32px] border border-slate-50 dark:border-emerald-900/20 shadow-sm hover:shadow-xl transition-all group">
-      <div className="flex items-center justify-between mb-6">
-        <div className={`p-3 lg:p-4 rounded-2xl ${color} shadow-lg ring-4 ring-slate-50 dark:ring-emerald-900/10`}>
-          <Icon size={20} className="text-white lg:w-6 lg:h-6" />
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] font-black text-slate-400 dark:text-emerald-500/40 uppercase tracking-[0.2em]">Insights</span>
-          {trend && <span className="text-[10px] lg:text-xs font-bold text-emerald-600 dark:text-amber-400 flex items-center gap-1 mt-1"><ArrowUpRight size={12}/> {trend}</span>}
-        </div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="w-10 h-10 border-4 border-emerald-800 border-t-transparent rounded-full animate-spin"></div>
       </div>
-      <h3 className="text-slate-500 dark:text-emerald-500/60 text-xs lg:text-sm font-bold tracking-tight">{title}</h3>
-      <p className="text-3xl lg:text-4xl font-black mt-2 text-emerald-950 dark:text-emerald-50">{value}</p>
-    </div>
-  );
+    );
+  }
+
+  const isLandlord = userRole === UserRole.LANDLORD;
 
   return (
-    <div className="space-y-10 lg:space-y-12">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+    <div className="max-w-[1400px] mx-auto space-y-8 pb-12">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <span className="text-emerald-700 dark:text-amber-400 font-black text-xs uppercase tracking-widest mb-2 block">Morning, Alex</span>
-          <h1 className="text-3xl lg:text-5xl font-black text-emerald-950 dark:text-emerald-50 tracking-tight">Your Portfolio Intelligence</h1>
+          <h1 className="text-3xl font-black text-emerald-950 dark:text-emerald-50 tracking-tight">
+            Control Center
+          </h1>
+          <p className="text-slate-400 dark:text-emerald-500/40 text-sm font-bold uppercase tracking-widest mt-1">
+            Operational Overview &bull; {isLandlord ? 'Estate Management' : 'Residency Portal'}
+          </p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <button className="bg-white dark:bg-[#0D1512] border border-slate-100 dark:border-emerald-900/30 px-6 lg:px-8 py-3 rounded-2xl text-xs lg:text-sm font-black text-slate-600 dark:text-emerald-200 hover:bg-slate-50 dark:hover:bg-emerald-900/10 shadow-sm transition-all">Audit Activity</button>
-          <button className="bg-emerald-800 dark:bg-amber-400 dark:text-emerald-950 text-white px-6 lg:px-8 py-3 rounded-2xl text-xs lg:text-sm font-black hover:bg-emerald-900 dark:hover:bg-amber-300 shadow-xl shadow-emerald-900/20 dark:shadow-amber-400/10 flex items-center gap-2 group transition-all">
-            {userRole === UserRole.LANDLORD ? <><Plus size={16}/> List Estate</> : 'Explore Residences'}
-          </button>
+        <div className="text-right">
+          <p className="text-xs font-black text-emerald-800 dark:text-amber-400 uppercase tracking-widest">System Status</p>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-bold text-emerald-950 dark:text-emerald-50">Neural Link Active</span>
+          </div>
         </div>
-      </header>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-8">
-        <StatsCard 
-          title={userRole === UserRole.LANDLORD ? "Active Estates" : "Applications"} 
-          value={userRole === UserRole.LANDLORD ? properties.length : applications.length} 
-          icon={Home} 
-          color="bg-emerald-800" 
-          trend="+12%"
-        />
-        <StatsCard 
-          title="Direct Inquiries" 
-          value="4" 
-          icon={MessageCircle} 
-          color="bg-slate-900 dark:bg-emerald-700" 
-        />
-        <StatsCard 
-          title="Open Logistics" 
-          value="2" 
-          icon={Clock} 
-          color="bg-amber-600" 
-        />
-        <StatsCard 
-          title="Portfolio Value" 
-          value="$4.2k" 
-          icon={TrendingUp} 
-          color="bg-emerald-600" 
-          trend="+5.4%"
-        />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 lg:gap-12">
-        {/* Main Feed */}
-        <div className="xl:col-span-2 space-y-10 lg:space-y-12">
-          {/* Recent Activity */}
-          <section className="bg-white dark:bg-[#0D1512] rounded-[32px] lg:rounded-[40px] border border-slate-50 dark:border-emerald-900/20 shadow-sm overflow-hidden">
-            <div className="px-6 lg:px-10 py-6 lg:py-8 border-b border-slate-50 dark:border-emerald-900/20 flex justify-between items-center">
-              <h2 className="text-xl lg:text-2xl font-black text-emerald-950 dark:text-emerald-50">Recent Intelligence</h2>
-              <button className="text-emerald-800 dark:text-amber-400 text-xs lg:text-sm font-bold hover:underline">Full Audit</button>
+      {/* Action Required Panel (Critical items) */}
+      <section className="bg-amber-50 dark:bg-amber-400/5 border border-amber-200 dark:border-amber-400/20 rounded-[32px] p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <AlertCircle className="text-amber-600 dark:text-amber-400" size={20} />
+          <h2 className="text-sm font-black text-amber-900 dark:text-amber-200 uppercase tracking-widest">Attention Required</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {!isLandlord && (
+            <div className="bg-white dark:bg-[#0D1512] p-4 rounded-2xl flex items-center justify-between border border-amber-200/50 dark:border-amber-400/10 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-100 dark:bg-amber-400/10 rounded-xl text-amber-600 dark:text-amber-400">
+                  <CreditCard size={18} />
+                </div>
+                <span className="text-xs font-bold text-slate-700 dark:text-emerald-100">March Rent Payment</span>
+              </div>
+              <button className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase hover:underline">Pay Now</button>
             </div>
-            <div className="divide-y divide-slate-50 dark:divide-emerald-900/20">
-              {applications.length > 0 ? (
-                applications.map(app => (
-                  <div key={app.id} className="px-6 lg:px-10 py-6 lg:py-8 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-emerald-900/5 transition-colors group">
-                    <div className="flex items-center gap-4 lg:gap-6">
-                      <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-800 dark:text-amber-400 group-hover:scale-105 transition-transform shrink-0">
-                        <Home size={24} className="lg:w-7 lg:h-7" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-black text-sm lg:text-base text-emerald-950 dark:text-emerald-50 truncate">Residency App #{app.propertyId.slice(-4)}</p>
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-emerald-500/40 mt-1 uppercase tracking-wider">Processed {new Date(app.submittedAt).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <span className={`px-3 lg:px-5 py-1.5 lg:py-2 rounded-xl text-[10px] font-black tracking-widest uppercase shrink-0 ${
-                      app.status === 'PENDING' ? 'bg-amber-50 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400'
-                    }`}>
-                      {app.status}
+          )}
+          <div className="bg-white dark:bg-[#0D1512] p-4 rounded-2xl flex items-center justify-between border border-amber-200/50 dark:border-amber-400/10 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 dark:bg-amber-400/10 rounded-xl text-amber-600 dark:text-amber-400">
+                <MessageSquare size={18} />
+              </div>
+              <span className="text-xs font-bold text-slate-700 dark:text-emerald-100">2 Unread Messages</span>
+            </div>
+            <button className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase hover:underline">View</button>
+          </div>
+          <div className="bg-white dark:bg-[#0D1512] p-4 rounded-2xl flex items-center justify-between border border-amber-200/50 dark:border-amber-400/10 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 dark:bg-amber-400/10 rounded-xl text-amber-600 dark:text-amber-400">
+                <Clock size={18} />
+              </div>
+              <span className="text-xs font-bold text-slate-700 dark:text-emerald-100">Maintenance Update</span>
+            </div>
+            <button className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase hover:underline">Track</button>
+          </div>
+        </div>
+      </section>
+
+      {/* Primary Data Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left Column: Stats & Financials */}
+        <div className="lg:col-span-8 space-y-8">
+          
+          {/* Financial Snapshot */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-emerald-950 rounded-[32px] p-8 text-white relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform"></div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-6">
+                {isLandlord ? 'Portfolio Revenue' : 'Financial Balance'}
+              </p>
+              <div className="flex items-end justify-between">
+                <div>
+                  <h3 className="text-4xl font-black text-white leading-none">
+                    {isLandlord ? '$12,450' : '$2,500'}
+                  </h3>
+                  <p className="text-xs font-bold text-emerald-100/40 mt-2">
+                    {isLandlord ? 'Total Expected March' : 'Total Outstanding'}
+                  </p>
+                </div>
+                {isLandlord && (
+                  <div className="text-right">
+                    <span className="text-emerald-400 text-sm font-black flex items-center gap-1">
+                      <TrendingUp size={16} /> 94%
                     </span>
+                    <p className="text-[10px] text-emerald-100/20 font-bold uppercase mt-1">Collection Rate</p>
                   </div>
-                ))
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-[#0D1512] rounded-[32px] p-8 border border-slate-100 dark:border-emerald-900/20 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-emerald-500/40 mb-6">
+                {isLandlord ? 'Occupancy Stats' : 'Lease Integrity'}
+              </p>
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-emerald-900/10 flex items-center justify-center border border-slate-100 dark:border-emerald-900/20">
+                  {isLandlord ? <Users size={32} className="text-emerald-800 dark:text-amber-400" /> : <ShieldCheck size={32} className="text-emerald-800 dark:text-amber-400" />}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-emerald-950 dark:text-emerald-50">
+                    {isLandlord ? `${data.properties.length} Active` : '98 Score'}
+                  </h3>
+                  <p className="text-xs font-bold text-slate-400 dark:text-emerald-500/60 mt-1">
+                    {isLandlord ? 'Properties in Portfolio' : 'Verified Profile Score'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Activity / Communications Center */}
+          <div className="bg-white dark:bg-[#0D1512] rounded-[32px] border border-slate-100 dark:border-emerald-900/20 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-emerald-900/20 flex justify-between items-center">
+              <h3 className="font-black text-lg text-emerald-950 dark:text-emerald-50">Intelligence Feed</h3>
+              <button className="text-[10px] font-black text-emerald-800 dark:text-amber-400 uppercase tracking-widest hover:underline">History</button>
+            </div>
+            <div className="divide-y divide-slate-50 dark:divide-emerald-900/10">
+              <div className="p-6 flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-emerald-900/5 transition-colors group">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-800 dark:text-amber-400 shrink-0">
+                  <MessageSquare size={20} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm font-black text-emerald-950 dark:text-emerald-50">New message from Jane Smith</p>
+                    <span className="text-[10px] text-slate-400 font-bold">10m ago</span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-emerald-500/60 mt-1 line-clamp-1 font-medium">The move-in documents are ready for your review and digital signature...</p>
+                </div>
+                <ArrowRight size={16} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
+              </div>
+              <div className="p-6 flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-emerald-900/5 transition-colors group">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-800 dark:text-amber-400 shrink-0">
+                  <Wrench size={20} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm font-black text-emerald-950 dark:text-emerald-50">Maintenance Ticket #4412</p>
+                    <span className="text-[10px] text-slate-400 font-bold">Yesterday</span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-emerald-500/60 mt-1 line-clamp-1 font-medium">Status updated to: IN PROGRESS. Expert 'Volt Masters' is on site.</p>
+                </div>
+                <ArrowRight size={16} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Quick Actions & Maintenance */}
+        <div className="lg:col-span-4 space-y-8">
+          
+          {/* Quick Action Hub */}
+          <div className="bg-white dark:bg-[#0D1512] rounded-[32px] p-8 border border-slate-100 dark:border-emerald-900/20 shadow-sm">
+            <h3 className="font-black text-lg text-emerald-950 dark:text-emerald-50 mb-6">Quick Actions</h3>
+            <div className="space-y-3">
+              <button className="w-full p-4 rounded-2xl bg-emerald-800 dark:bg-amber-400 text-white dark:text-emerald-950 flex items-center justify-between group hover:scale-[1.02] transition-all">
+                <div className="flex items-center gap-3">
+                  <Plus size={18} />
+                  <span className="text-xs font-black uppercase tracking-widest">{isLandlord ? 'Add Property' : 'Pay Rent'}</span>
+                </div>
+                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/10 text-emerald-950 dark:text-emerald-100 border border-slate-100 dark:border-emerald-800/20 flex items-center justify-between group hover:bg-slate-100 transition-all">
+                <div className="flex items-center gap-3">
+                  <Wrench size={18} />
+                  <span className="text-xs font-black uppercase tracking-widest">Maintenance Request</span>
+                </div>
+                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/10 text-emerald-950 dark:text-emerald-100 border border-slate-100 dark:border-emerald-800/20 flex items-center justify-between group hover:bg-slate-100 transition-all">
+                <div className="flex items-center gap-3">
+                  <Calendar size={18} />
+                  <span className="text-xs font-black uppercase tracking-widest">Book Services</span>
+                </div>
+                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </div>
+
+          {/* Active Lease / Property Overview */}
+          <div className="bg-white dark:bg-[#0D1512] rounded-[32px] p-8 border border-slate-100 dark:border-emerald-900/20 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-black text-lg text-emerald-950 dark:text-emerald-50">{isLandlord ? 'Portfolio Pulse' : 'Lease Summary'}</h3>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-800 dark:text-amber-400">
+                <Home size={16} />
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              {isLandlord ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400 font-bold">Occupancy Rate</span>
+                    <span className="text-emerald-600 font-black">88%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-emerald-900/20 h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-emerald-500 h-full w-[88%]"></div>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400 font-bold">Pending Renewals</span>
+                    <span className="text-amber-600 font-black">3 Assets</span>
+                  </div>
+                </div>
               ) : (
-                <div className="p-12 lg:p-20 text-center text-slate-400">
-                  <div className="mb-4 lg:mb-6 flex justify-center"><Briefcase size={48} className="opacity-10 lg:w-16 lg:h-16" /></div>
-                  <p className="font-bold text-sm lg:text-base">Waiting for market activity...</p>
+                <div className="space-y-4">
+                  <div className="bg-slate-50 dark:bg-emerald-900/10 p-4 rounded-2xl border border-slate-100 dark:border-emerald-800/20">
+                    <p className="text-[10px] font-black text-slate-400 dark:text-emerald-500/40 uppercase tracking-widest">Active Residence</p>
+                    <p className="text-sm font-black text-emerald-950 dark:text-emerald-50 mt-1">Modern Downtown Loft</p>
+                    <p className="text-[10px] text-emerald-700 dark:text-amber-400 font-bold mt-1">Lease expires: Jan 2025</p>
+                  </div>
+                  <button className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase text-emerald-800 dark:text-amber-400 hover:scale-105 transition-transform">
+                    View Agreement <ExternalLink size={12} />
+                  </button>
                 </div>
               )}
             </div>
-          </section>
-
-          {/* AI Recommendations */}
-          {userRole === UserRole.TENANT && aiRecs.length > 0 && (
-            <section className="bg-gradient-to-br from-emerald-950 to-emerald-800 rounded-[32px] lg:rounded-[48px] p-8 lg:p-12 text-white relative overflow-hidden shadow-2xl">
-              <div className="absolute top-0 right-0 w-48 h-48 lg:w-64 lg:h-64 bg-amber-400/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-[80px] lg:blur-[100px]"></div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-4 mb-8 lg:mb-10">
-                  <div className="p-2 lg:p-3 bg-amber-400 text-emerald-950 rounded-2xl shadow-xl shadow-amber-400/20"><Zap size={20} className="lg:w-6 lg:h-6" /></div>
-                  <div>
-                    <h2 className="text-2xl lg:text-3xl font-black tracking-tight">Curated Matches</h2>
-                    <p className="text-emerald-200/60 text-xs lg:text-sm font-medium">AI-driven portfolio suggestions.</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-                  {aiRecs.map((rec, i) => (
-                    <div key={i} className="bg-white/5 backdrop-blur-md border border-white/10 p-6 lg:p-8 rounded-3xl hover:bg-white/10 transition-all cursor-pointer group">
-                      <p className="text-amber-400 text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] mb-4">Market Opportunity</p>
-                      <p className="text-sm lg:text-base font-medium italic mb-6 leading-relaxed">"{rec.reason}"</p>
-                      <button className="text-white text-xs lg:text-sm font-black flex items-center gap-2 group-hover:gap-3 transition-all">
-                        View Sanctuary <ArrowUpRight size={16} className="text-amber-400 lg:w-[18px] lg:h-[18px]" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-        </div>
-
-        {/* Sidebar Info */}
-        <div className="space-y-8 lg:space-y-10">
-          {/* Quick Actions */}
-          <div className="bg-white dark:bg-[#0D1512] p-8 lg:p-10 rounded-[32px] lg:rounded-[40px] border border-slate-50 dark:border-emerald-900/20 shadow-sm">
-            <h3 className="font-black text-lg lg:text-xl text-emerald-950 dark:text-emerald-50 mb-6 lg:mb-8">Executive Actions</h3>
-            <div className="grid grid-cols-2 gap-3 lg:gap-4">
-              {[
-                { label: 'Transact', icon: Clock, color: 'text-emerald-800 bg-emerald-50' },
-                { label: 'Logistics', icon: Wrench, color: 'text-amber-600 bg-amber-50' },
-                { label: 'Artifacts', icon: Briefcase, color: 'text-slate-800 bg-slate-50' },
-                { label: 'Concierge', icon: MessageCircle, color: 'text-emerald-900 bg-emerald-100' }
-              ].map((action, i) => (
-                <button key={i} className="flex flex-col items-start gap-3 lg:gap-4 p-4 lg:p-6 rounded-[24px] hover:bg-slate-50 dark:hover:bg-emerald-900/10 transition-all border border-transparent hover:border-slate-100 dark:hover:border-emerald-900/20 group">
-                  <div className={`p-3 lg:p-4 rounded-2xl ${action.color} group-hover:scale-110 transition-transform shadow-sm`}>
-                    <action.icon size={18} className="lg:w-[22px] lg:h-[22px]" />
-                  </div>
-                  <span className="text-[11px] lg:text-[13px] font-black text-slate-700 dark:text-emerald-200 uppercase tracking-tighter">{action.label}</span>
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* Verification Status */}
-          <div className="bg-slate-900 dark:bg-emerald-950/80 text-white p-8 lg:p-10 rounded-[32px] lg:rounded-[40px] relative overflow-hidden shadow-2xl border border-white/5">
-            <ShieldCheck className="absolute -right-6 -bottom-6 w-32 h-32 lg:w-48 lg:h-48 text-emerald-500 opacity-[0.03]" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-4 lg:mb-6">
-                <div className="w-9 h-9 lg:w-10 lg:h-10 bg-emerald-500/20 flex items-center justify-center rounded-xl text-emerald-400 ring-1 ring-emerald-500/30">
-                  <ShieldCheck size={20} className="lg:w-6 lg:h-6" />
-                </div>
-                <h3 className="font-black text-base lg:text-lg tracking-tight">Profile Integrity</h3>
-              </div>
-              <p className="text-slate-400 dark:text-emerald-500/60 text-[11px] lg:text-[13px] mb-6 lg:mb-8 leading-relaxed font-medium">Your identity has been fully verified to premium standards.</p>
-              <div className="w-full bg-slate-800 dark:bg-emerald-900/40 rounded-full h-1.5 lg:h-2 mb-4 lg:mb-6 ring-1 ring-white/5">
-                <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-1.5 lg:h-2 rounded-full w-[100%] shadow-[0_0_12px_rgba(16,185,129,0.3)]"></div>
-              </div>
-              <button className="text-[10px] font-black text-amber-400 uppercase tracking-widest hover:text-amber-300 transition-colors">Digital Credentials</button>
-            </div>
+          {/* System Announcement Card */}
+          <div className="bg-slate-900 rounded-[32px] p-8 text-white relative overflow-hidden">
+            <Sparkles className="absolute -right-4 -bottom-4 w-24 h-24 text-white/5" />
+            <h4 className="text-sm font-black uppercase tracking-widest text-amber-400 mb-2">Neural Update</h4>
+            <p className="text-xs text-white/60 leading-relaxed font-medium">
+              We've upgraded our maintenance matching algorithm. Providers now arrive 20% faster on average.
+            </p>
           </div>
+
         </div>
       </div>
     </div>
